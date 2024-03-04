@@ -1,1 +1,1 @@
-# iot-server
+The IoT server, powered by Node.js, serves as a pivotal link between IoT devices and the JJodel platform. With MQTT Broker integration, it proficiently handles data exchange, allowing devices to publish and subscribe to relevant topics. Seamlessly, it channels this data to the JJodel platform using WebSockets, ensuring real-time transmission for immediate processing and analysis. Designed for scalability and customization, it promises reliable data transmission, even in challenging network environments.
