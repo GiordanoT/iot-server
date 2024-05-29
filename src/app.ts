@@ -1,4 +1,5 @@
 import mqtt from 'mqtt';
+import Action from './data/Action';
 
 const brokerUrl = 'mqtt://localhost:1883';
 const client = mqtt.connect(brokerUrl);
@@ -7,9 +8,9 @@ const client = mqtt.connect(brokerUrl);
 client.on('connect', () => {
     console.log('Connection Done');
     client.subscribe('sensors/#');
-    client.publish('sensors/1', 'Hello I am 1');
-    client.publish('sensors/2', 'Hello I am 2');
-    client.end();
+    // client.publish('sensors/1', 'Hello I am 1');
+    // client.publish('sensors/2', 'Hello I am 2');
+    // client.end();
 });
 
 client.on('end', () => {
@@ -21,5 +22,12 @@ client.on('error', (error) => {
 });
 
 client.on('message', (topic, message) => {
-    console.log(`Received message on topic "${topic}": ${message.toString()}`);
+    // console.log(`Received message on topic "${topic}": ${message.toString()}`);
+    try {
+        const value = JSON.parse(message.toString());
+        const action = Action.SET_ROOT_FIELD(`topics.${topic}`, '+=', value, false);
+        console.log(action);
+    } catch (e) {
+        console.log(topic, e)
+    }
 });
