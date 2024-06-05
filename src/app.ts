@@ -21,7 +21,10 @@ broker.on('error', (error) => {
 /* Web Socket */
 const PORT = 5003;
 const server = http.createServer();
-const io = new Server(server, {path: '/iot'});
+const io = new Server(server, {
+    cors: {origin: 'http://localhost:3000'},
+    path: '/iot'
+});
 server.listen(PORT);
 console.log(`Server Listening on port ${PORT}.`);
 
@@ -30,18 +33,12 @@ io.on('connection', async(socket: Socket) => {
     const projectID = socket.handshake.query.project as string;
     socket.join(projectID);
     console.log(`New User Connected to Project: ${projectID}`);
-    const topics: string[] = [];
     broker.on('message', (topic, message) => {
         try {
-            if(!topics.includes(topic)) {
-                topics.push(topic);
-                const initAction = Action.SET_ROOT_FIELD(`topics.${topic}`, '=', [], false);
-                socket.broadcast.to(projectID).emit('pullAction', initAction);
-            }
             const value = JSON.parse(message.toString());
             const action = Action.SET_ROOT_FIELD(`topics.${topic}`, '+=', value, false);
             socket.broadcast.to(projectID).emit('pullAction', action);
-            console.log(topics);
+            console.log(action);
         } catch (e) {
             console.log(topic, e)
         }
@@ -53,3 +50,4 @@ io.on('connection', async(socket: Socket) => {
     });
 
 });
+
