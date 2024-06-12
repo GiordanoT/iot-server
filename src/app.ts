@@ -37,7 +37,7 @@ io.on('connection', async(socket: Socket) => {
         try {
             const value = JSON.parse(message.toString());
             const action = Action.SET_ROOT_FIELD(`topics.${topic}`, '+=', value, false);
-            socket.broadcast.to(projectID).emit('pullAction', action);
+            socket.broadcast.to(projectID).emit('pull-action', action);
             console.log(action);
         } catch (e) {
             console.log(topic, e)
