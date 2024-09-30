@@ -2,6 +2,25 @@ import http from 'http';
 import mqtt from 'mqtt';
 import Action from './data/Action';
 import {Server, Socket} from 'socket.io';
+import {Blob} from './data/types';
+
+/* Influx DB
+import {InfluxDB, Point} from '@influxdata/influxdb-client';
+const url = 'http://localhost:8086';
+const token = '6t7n72CIA-esiVc9aVESpRNc1nszwHT-mEf2UHQm_ZQUxoa1O-l3IIAgxMgV6jcARsNvGvXBYpbvQDk4di-bBg==';
+const influxDB = new InfluxDB({url, token})
+const org = 'univaq';
+const bucket = 'jjodel';
+const writeApi = influxDB.getWriteApi(org, bucket);
+
+const point = new Point('my-test')
+    .tag('tag_key', 'tag_value')
+    .floatField('field_key', 123.456)
+    .timestamp(new Date());
+
+writeApi.writePoint(point);
+writeApi.close().then(() => console.log('Finished'));
+*/
 
 /* Web Socket */
 const PORT = 5003;
@@ -20,11 +39,14 @@ io.on('connection', async(socket: Socket) => {
     const brokerUrl = socket.handshake.query.brokerUrl as string;
 
     await socket.join(projectID);
-    // Send connection to middleware OK
-    console.log(`New User Connected to Project: ${projectID}`);
+    socket.to(projectID).emit('logger', 'Connect (Middleware)');
+    console.log(`New User Connected: ${projectID} -> ${brokerUrl}`);
 
     const ID = `${projectID}-${brokerUrl}`;
-    if(IDs.includes(ID)) return;
+    if(IDs.includes(ID)) {
+        socket.to(projectID).emit('logger', 'Connect (Broker)');
+        return;
+    }
     IDs.push(ID);
 
     /* MQTT Broker */
@@ -32,22 +54,23 @@ io.on('connection', async(socket: Socket) => {
 
     broker.on('connect', () => {
         console.log('Connection to Broker Done');
-        // send connection to broker OK
+        socket.to(projectID).emit('logger', 'Connect (Broker)');
         broker.subscribe('#');
     });
     broker.on('end', () => {
-        // send disconnection to Broker OK
+        socket.to(projectID).emit('logger', 'End (Broker)');
         console.log('Disconnection to Broker Done');
     });
     broker.on('error', (error) => {
-        // Send error with Broker
+        socket.to(projectID).emit('logger', 'Error (Broker)');
+        broker.end();
         console.error('Broker error:', error);
     });
 
     broker.on('message', (topic, message) => {
         try {
             const value = JSON.parse(message.toString());
-            const action = Action.SET_ROOT_FIELD(`topics.${topic}`, '+=', value, false);
+            const action = Action.SET_ROOT_FIELD(`topics.${topic}`, '=', value, false);
             socket.to(projectID).emit('pull-action', action);
             console.log(`Sending ${action.id}`);
         } catch (e) {
@@ -55,9 +78,14 @@ io.on('connection', async(socket: Socket) => {
         }
     });
 
+    socket.on('push-action', async(blob: Blob) => {
+        console.log('Action pushed', blob);
+        broker.publish(blob.topic, blob.value);
+    })
+
     socket.on('disconnect', async () => {
+        socket.to(projectID).emit('logger', 'Disconnect (Middleware)');
         await socket.leave(projectID);
-        // Send disconnection to middleware OK
         console.log(`${socket.id} Disconnection`);
     });
 
