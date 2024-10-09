@@ -31,7 +31,7 @@ const io = new Server(server, {
 });
 server.listen(PORT);
 console.log(`Server Listening on port ${PORT}.`);
-const IDs: string[] = [];
+// const IDs: string[] = [];
 
 
 io.on('connection', async(socket: Socket) => {
@@ -39,30 +39,33 @@ io.on('connection', async(socket: Socket) => {
     const brokerUrl = socket.handshake.query.brokerUrl as string;
 
     await socket.join(projectID);
-    socket.to(projectID).emit('logger', 'Connect (Middleware)');
+    // socket.to(projectID).emit('logger', 'Connect (Middleware)');
     console.log(`New User Connected: ${projectID} -> ${brokerUrl}`);
 
+    /*
     const ID = `${projectID}-${brokerUrl}`;
     if(IDs.includes(ID)) {
         socket.to(projectID).emit('logger', 'Connect (Broker)');
+        error on disconnection (publish don't work)
         return;
     }
     IDs.push(ID);
+    */
 
     /* MQTT Broker */
     const broker = mqtt.connect(brokerUrl);
 
     broker.on('connect', () => {
         console.log('Connection to Broker Done');
-        socket.to(projectID).emit('logger', 'Connect (Broker)');
+        // socket.to(projectID).emit('logger', 'Connect (Broker)');
         broker.subscribe('#');
     });
     broker.on('end', () => {
-        socket.to(projectID).emit('logger', 'End (Broker)');
+        // socket.to(projectID).emit('logger', 'End (Broker)');
         console.log('Disconnection to Broker Done');
     });
     broker.on('error', (error) => {
-        socket.to(projectID).emit('logger', 'Error (Broker)');
+        // socket.to(projectID).emit('logger', 'Error (Broker)');
         broker.end();
         console.error('Broker error:', error);
     });
@@ -81,7 +84,9 @@ io.on('connection', async(socket: Socket) => {
     socket.on('push-action', async(blob: Blob) => {
         console.log('Action pushed', blob);
         broker.publish(blob.topic, blob.value);
-    })
+        const action = Action.SET_ROOT_FIELD(`topics.${blob.topic}`, '=', blob.value, false);
+        socket.to(projectID).emit('pull-action', action);
+    });
 
     socket.on('disconnect', async () => {
         socket.to(projectID).emit('logger', 'Disconnect (Middleware)');
